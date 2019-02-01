@@ -9,6 +9,7 @@
 import UIKit
 import RxSwift
 import RxCocoa
+import SafariServices
 
 class ViewController: UIViewController {
 
@@ -20,7 +21,7 @@ class ViewController: UIViewController {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
         self.searchBar.rx.text.orEmpty
-            .filter { $0.count >= 3 }
+            .filter { $0.count >= 2 }
             .map { let urlStr = "https://ja.wikipedia.org/w/api.php?format=json&action=query&list=search&srsearch=\($0)"
                 return URL(string: urlStr.addingPercentEncoding(withAllowedCharacters: NSCharacterSet.urlQueryAllowed)!)!
             }
@@ -31,13 +32,25 @@ class ViewController: UIViewController {
                 cell.detailTextLabel?.text = "https://ja.wikipedia.org/w/index.php?curid=\(result.pageid)"
             }
             .disposed(by: disposeBag)
+        
+        self.tableView.rx.itemSelected.asDriver().drive( onNext:{
+            [unowned self] indexPath in
+            if let text = self.tableView.cellForRow(at: indexPath)?.detailTextLabel?.text {
+                if let url = URL(string: text) {
+                    let sc = SFSafariViewController(url: url)
+                    self.present(sc, animated: false, completion: {})
+                }
+                
+            }
+        
+        }).disposed(by: disposeBag)
     }
 
     func parseJson(_ json: Any) -> [Result] {
         guard let items = json as? [String:Any] else {
             return []
         }
-        
+        //print(items)
         var results = [Result]()
         if let queryItems = items["query"] as? [String:Any] {
             if let searchItems = queryItems["search"] as? [[String:Any]] {
